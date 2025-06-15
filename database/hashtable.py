@@ -83,6 +83,7 @@ class HashTable:
     tabs : list = None # самый актуальный будет в конце
     hash_func = None
     dtor = None
+    count = 0
 
 # Создать хеш таблицу
 def ht_init(size, hash_func = None, destructor = None):
@@ -128,6 +129,9 @@ def ht_set(ht : HashTable, key : str, data):
     save_data = _ht_refresh(ht, key)
     tb = ht.tabs[-1]
     r = _tab_set(tb, key, data, ht.dtor)
+    if not r and not save_data:
+        ht.count += 1
+        _ht_keep_size_normal(ht)
     return save_data if save_data else r
 
 # Получить значение по ключу. Если ключа нет в таблице, вернуть 0.
@@ -148,6 +152,8 @@ def ht_delete(ht : HashTable, key : str):
     for tb in ht.tabs:
         sv = _tab_delete(tb, key, ht.dtor)
         if sv:
+            ht.count -= 1
+            _ht_keep_size_normal(ht)
             return sv
 
 # Обход таблицы с посещением всех элементов.
@@ -168,8 +174,16 @@ def ht_traverse(ht : HashTable, f):
     ht.tabs = ht.tabs[-1:]
 
 # Изменить размер базового массива.
-def ht_resize(ht : HashTable, new_size):
+def _ht_resize(ht : HashTable, new_size):
     if new_size <= 0:
         return
     _ht_remove_empty_tabs(ht, len(ht.tabs))
     ht.tabs.append(_Table(new_size, ht.hash_func))
+
+def _ht_keep_size_normal(ht : HashTable):
+    k = ht.count / ht.tabs[-1].size
+    norma = [0.25, 0.75]
+    if k < norma[0]:
+        _ht_resize(ht, ht.tabs[-1].size//2)
+    elif k > norma[1]:
+        _ht_resize(ht, ht.tabs[-1].size*2)
