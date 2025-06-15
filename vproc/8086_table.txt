@@ -1,0 +1,234 @@
+; Арифметика
+; Добавить потом NOT, NEG
+00	ADD		Eb	Gb
+01	ADD		Ev	Gv
+02	ADD		Gb	Eb
+03	ADD		Gv	Ev
+04	ADD		AL	Ib
+05	ADD		eAX	Iv
+28	SUB		Eb	Gb
+29	SUB		Ev	Gv
+2A	SUB		Gb	Eb
+2B	SUB		Gv	Ev
+2C	SUB		AL	Ib
+2D	SUB		eAX	Iv
+30	XOR		Eb	Gb
+31	XOR		Ev	Gv
+32	XOR		Gb	Eb
+33	XOR		Gv	Ev
+34	XOR		AL	Ib
+35	XOR		eAX	Iv
+
+40	INC		eAX
+41	INC		eCX
+42	INC		eDX
+43	INC		eBX
+44	INC		eSP
+45	INC		eBP
+46	INC		eSI
+47	INC		eDI
+48	DEC		eAX
+49	DEC		eCX
+4A	DEC		eDX
+4B	DEC		eBX
+4C	DEC		eSP
+4D	DEC		eBP
+4E	DEC		eSI
+4F	DEC		eDI
+
+; расширение
+; AL->AX
+98	CBW
+; AX->DX:AX
+99	CWD
+
+
+; Логические операции
+20	AND		Eb	Gb
+21	AND		Ev	Gv
+22	AND		Gb	Eb
+23	AND		Gv	Ev
+24	AND		AL	Ib
+25	AND		eAX	Iv
+08	OR		Eb	Gb
+09	OR		Ev	Gv
+0A	OR		Gb	Eb
+0B	OR		Gv	Ev
+0C	OR		AL	Ib
+0D	OR		eAX	Iv
+38	CMP		Eb	Gb
+39	CMP		Ev	Gv
+3A	CMP		Gb	Eb
+3B	CMP		Gv	Ev
+3C	CMP		AL	Ib
+3D	CMP		eAX	Iv
+84	TEST	Gb	Eb
+85	TEST	Gv	Ev
+A8	TEST	AL	Ib
+A9	TEST	eAX	Iv
+
+70	JO		Jb
+71	JNO		Jb
+72	JB		Jb
+73	JNB		Jb
+74	JZ		Jb
+75	JNZ		Jb
+76	JBE		Jb
+77	JA		Jb
+78	JS		Jb
+79	JNS		Jb
+7A	JPE		Jb
+7B	JPO		Jb
+7C	JL		Jb
+7D	JGE		Jb
+7E	JLE		Jb
+7F	JG		Jb
+
+
+; Стэк
+50	PUSH	eAX
+51	PUSH	eCX
+52	PUSH	eDX
+53	PUSH	eBX
+54	PUSH	eSP
+55	PUSH	eBP
+56	PUSH	eSI
+57	PUSH	eDI
+58	POP		eAX
+59	POP		eCX
+5A	POP		eDX
+5B	POP		eBX
+5C	POP		eSP
+5D	POP		eBP
+5E	POP		eSI
+5F	POP		eDI
+8F	POP		Ev
+
+06	PUSH	ES
+0E	PUSH	CS
+16	PUSH	SS
+1E	PUSH	DS
+07	POP		ES
+17	POP		SS
+1F	POP		DS
+
+9A	CALL	Ap
+E8	CALL	Jv
+
+C2	RET		Iw
+C3	RET
+
+CA	RETF	Iw
+CB	RETF
+
+E9	JMP		Jv
+EA	JMP		Ap
+EB	JMP		Jb
+
+; поместить в стек регистр флагов
+9C	PUSHF
+9D	POPF
+
+; l - загрузка флагов в AH, s - запись флагов из AH
+9F	LAHF
+9E	SAHF
+
+; строки
+AA	STOSB
+AB	STOSW
+AC	LODSB
+AD	LODSW
+AE	SCASB
+AF	SCASW
+
+; Чиста память
+; Меняет местами операнды
+86	XCHG	Gb	Eb
+87	XCHG	Gv	Ev
+91	XCHG	eCX eAX
+92	XCHG	eDX eAX
+93	XCHG	eBX eAX
+94	XCHG	eSP eAX
+95	XCHG	eBP eAX
+96	XCHG	eSI eAX
+97	XCHG	eDI eAX
+
+88	MOV		Eb	Gb
+89	MOV		Ev	Gv
+8A	MOV		Gb	Eb
+8B	MOV		Gv	Ev
+8C	MOV		Ew	Sw
+8E	MOV		Sw	Ew
+
+A0	MOV		AL	Ob
+A1	MOV		eAX	Ov
+A2	MOV		Ob	AL
+A3	MOV		Ov	eAX
+
+B0	MOV		AL	Ib
+B1	MOV		CL	Ib
+B2	MOV		DL	Ib
+B3	MOV		BL	Ib
+B4	MOV		AH	Ib
+B5	MOV		CH	Ib
+B6	MOV		DH	Ib
+B7	MOV		BH	Ib
+B8	MOV		eAX	Iv
+B9	MOV		eCX	Iv
+BA	MOV		eDX	Iv
+BB	MOV		eBX	Iv
+BC	MOV		eSP	Iv
+BD	MOV		eBP	Iv
+BE	MOV		eSI	Iv
+BF	MOV		eDI	Iv
+
+C6	MOV		Eb	Ib
+C7	MOV		Ev	Iv
+
+A4	MOVSB
+A5	MOVSW
+A6	CMPSB
+A7	CMPSW
+
+8D	LEA		Gv	M
+
+C4	LES		Gv	Mp
+C5	LDS		Gv	Mp
+
+90	NOP
+
+; Функции прерывания
+CC	INT		3
+CD	INT		Ib
+; int 04h, но только при OF = 1
+CE	INTO
+CF	IRET
+
+
+D4	AAM		I0
+D5	AAD		I0
+D7	XLAT
+E0	LOOPNZ	Jb
+E1	LOOPZ	Jb
+E2	LOOP	Jb
+E3	JCXZ	Jb
+E4	IN		AL	Ib
+E5	IN		eAX	Ib
+E6	OUT		Ib	AL
+E7	OUT		Ib	eAX
+
+EC	IN		AL	DX
+ED	IN		eAX	DX
+EE	OUT		DX	AL
+EF	OUT		DX	eAX
+F0	LOCK
+F2	REPNZ
+F3	REPZ
+F4	HLT
+F5	CMC
+F8	CLC
+F9	STC
+FA	CLI
+FB	STI
+FC	CLD
+FD	STD
