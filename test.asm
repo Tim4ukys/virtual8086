@@ -1,17 +1,8 @@
 
-.stack 256
-
-section .rodata
-org 100h
-
+segment .data
 test db 23
 
-section .text
-test:
-
-
-
-
+segment .text
 
 
 

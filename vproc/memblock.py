@@ -34,7 +34,7 @@ class Memory:
     def __init__(self, sz=0xf_ff_ff):
         if sz % 2 != 0:
             sz += 1
-        self.v_mem = [Word() for _ in range(sz//2)]
+        self.v_mem = [Word(0x90) for _ in range(sz//2)]
 
     def read(self, addr, sz : SIZE):
         if addr + sz.value > len(self.v_mem)*2:

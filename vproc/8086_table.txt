@@ -71,22 +71,22 @@
 A8	TEST	AL	Ib
 A9	TEST	AX	Iv
 
-70	JO		Jb
-71	JNO		Jb
-72	JB		Jb
-73	JNB		Jb
-74	JZ		Jb
-75	JNZ		Jb
-76	JBE		Jb
-77	JA		Jb
-78	JS		Jb
-79	JNS		Jb
-7A	JPE		Jb
-7B	JPO		Jb
-7C	JL		Jb
-7D	JGE		Jb
-7E	JLE		Jb
-7F	JG		Jb
+70	JO		Jv
+71	JNO		Jv
+72	JB		Jv
+73	JNB		Jv
+74	JZ		Jv
+75	JNZ		Jv
+76	JBE		Jv
+77	JA		Jv
+78	JS		Jv
+79	JNS		Jv
+7A	JPE		Jv
+7B	JPO		Jv
+7C	JL		Jv
+7D	JGE		Jv
+7E	JLE		Jv
+7F	JG		Jv
 
 
 ; Стэк
@@ -119,15 +119,15 @@ A9	TEST	AX	Iv
 ;9A	CALL	Ap
 E8	CALL	Jv
 
-C2	RET		Iw
+C2	RET		Iv
 C3	RET
 
-;CA	RETF	Iw
+;CA	RETF	Iv
 ;CB	RETF
 
 E9	JMP		Jv
 ;EA	JMP		Ap
-EB	JMP		Jb
+;EB	JMP		Jb
 
 ; поместить в стек регистр флагов
 9C	PUSHF
@@ -194,7 +194,7 @@ A5	MOVSW
 A6	CMPSB
 A7	CMPSW
 
-;8D	LEA		Gv	M
+;8D	LEA		Gv  J
 
 ;C4	LES		Gv	Mp
 ;C5	LDS		Gv	Mp
@@ -213,10 +213,10 @@ A7	CMPSW
 
 ;D7	XLAT
 
-E0	LOOPNZ	Jb
-E1	LOOPZ	Jb
-E2	LOOP	Jb
-E3	JCXZ	Jb
+E0	LOOPNZ	Jv
+E1	LOOPZ	Jv
+E2	LOOP	Jv
+E3	JCXZ	Jv
 
 ;E4	IN		AL	Ib
 ;E5	IN		AX	Ib

@@ -1,17 +1,9 @@
 import database.hashtable as ht
-from instructions import _remove_comments
-from memblock import SIZE
+from vproc.instructions import _remove_comments
+from vproc.memblock import SIZE
+import enum
 
-def _check_brackets(expression):
-    stack = list()
-    brck = {"}": "{", "]": "[", ')': '(', '>': '<'}
-
-    for i in expression:
-        if i in brck.values():
-            stack.append(i)
-        elif i in brck.keys() and stack.pop() != brck[i]:
-            return 0
-    return 1
+from vproc.v8086 import registers
 
 # решить вопрос с прописью и заглавием
 
@@ -26,7 +18,7 @@ def _is_label(text):
     return _is_name_var(text[:-1:]) and text[-1] == ":"
 
 def _is_name_var(text):
-    if not (('A' <= text[0] <= 'Z') or ('a' <= text <= 'z')):
+    if not (('A' <= text[0] <= 'Z') or ('a' <= text[0] <= 'z')):
         return False
     for i in text:
         if i not in ALLOWED_SYMBOLS:
@@ -41,141 +33,217 @@ def _to_number(text, sz):
             'd': lambda a: int(a),
             'b': lambda a: int(a, 2)
         }
-        decode = decode['d' if text[-1] not in decode else text[-1]](text)
-        if decode >= 2 ** (8 * sz):
+        if not ('0' <= text[-1] <= '9' or text[-1] in decode):
+            raise ValueError
+        decode = (decode['d' if '0' <= text[-1] <= '9' else text[-1]])(text[:-1])
+        if decode >= 2 ** (8 * sz.value):
             return None
         return decode
     except ValueError:
         return None
 
+# [*вот эту запись*]
+def _get_pointer(text):
+    if text[0] == '[' and text[-1] == ']':
+        return text[1:-1]
+    return None
+
+def _get_modRm(mod, reg, rm):
+    reg16 = {k: i for i, k in enumerate(['AX', 'CX', 'DX', 'BX', 'SP', 'BP', 'SI', 'DI'])}
+    reg8 = {k: i for i, k in enumerate(['AX', 'CX', 'DX', 'BX', 'SP', 'BP', 'SI', 'DI'])}
+
+    r = 0
+    if mod == 11:
+        r |= 0b11000000
+        r |= (reg16 if reg in REG_16 else reg8)[reg] << 3
+        r |= (reg16 if reg in REG_16 else reg8)[rm]
+    else:
+        raise RuntimeError
+
+
+class CompErrors(enum.Enum):
+    LOT_TEXT = "В строке есть лишние символы"
+    ANY_TEXT = 'Недостаточно символов'
+    UNK_SYMBOL = 'Неизвестный символ'
+
+    SEG_UNKNOWN = 'Неизвестный сегмент'
+    SEG_DOUBLE = 'Сегмент указан дважды'
+
+    DS_UNK_TYPE = 'Неизвестный тип данных'
+    DS_NOT_HOME = 'Переменные объявляются строго внутри .data'
+    DS_NOT_NUMB = 'Поддерживаются только числа'
+
+    LB_EXITS = "Эта метка уже существует. Придумайте другое название"
+    LB_NOT_HOME = 'Метка должна быть только внутри .text'
+
+    OP_UNK = "Такой команды нет. Проверьте строку, пожалуйста"
+
+
 class CompileProg:
-    labels = None
     lines = None
 
     def __init__(self, file_name):
         with open(file_name) as f:
-            self.lines = [[i, _remove_comments(s).split()] for i, s in enumerate(f.readlines(), start=1) if len(_remove_comments(s).split())]
-
-    def analysis(self):
-        wrongs = {
-            "more_uses": [], # множественное использование
-        }
-        RESERVE_ONE = ['stack']
-        RESERVE_MORE = ['org',
-                        'segment',
-                        'db', 'dw',
-                        'resb', 'resw']
-        res_check = {i: 0 for i in RESERVE_ONE}
-        labels = []
-        for i, s in self.lines:
-            if s in RESERVE_ONE:
-                if not res_check[s]:
-                    res_check[s] = 1
-                else:
-                    wrongs["more_uses"].append(i)
+            self.lines = [[i, _remove_comments(s).split()]
+                          for i, s in enumerate(f.readlines(), start=1)
+                          if len(_remove_comments(s).split())]
 
     def compile(self, vproc):
-        labels = ht.ht_init(2)
         vproc.reset_registers()
         vproc.reset_flags()
 
-        # stack сюда надо засунуть
-        # юзануть warnings???
-        errors = []
+        labels = {
+            '.data': dict(),
+            '.text': dict(),
+        }
 
-        i = 0x100
-        cur_segment = ''
+        use_label = {}
+
+        def reg_label(lb, addr):
+            if lb not in use_label:
+                use_label[lb] = [addr]
+            else:
+                use_label[lb].append(addr)
+
+        i = 0x0
+        cur_seg = ''
+
         for number, s in self.lines:
-            # s = [*mnemonic*, *operands*]
-            # и т.п.
-            add_errors = lambda err: errors.append(f"{number}: {err}")
+            def error(text):
+                raise RuntimeError(f"Line: {number} | {text.value}")
 
-            # first = s[0]
-            if vproc.instructions.is_mnem(s[0]):
-                if not vproc.reg.cs.val:
-                    vproc.reg.cs.val = i
-                    cur_segment = '.text'
-                args = ' '.join(s[1:]).translate({ord(' '): '', ord('['): ',['}).split(',')
-
-                # если нет операндов
-                if len(args) == 0:
-                    op = vproc.instructions.get_code(s[0], '')
-                    if not op:
-                        add_errors("некоректный аргумент")
-                    else:
-                        vproc.ram.write(i, op, SIZE.BYTE)
-                        i += 1
-                    continue
-                opernds = []
-                # если операндов несколько
-                for i in s[1:]:
-                    regs = (
-                        'AX', 'BX', 'CX', 'DX',
-
-                        'AH', 'BH', 'CH', 'DH',
-                        'AL', 'BL', 'CL', 'CL',
-
-                        'SI', 'DI', 'BP', 'SP'
-                    )
-                    if s[1].upper()
-
-
-            elif s[0] == 'segment':
+            if s[0] == 'segment':
                 if len(s) > 2:
-                    add_errors("много текста")
-                    # break
-                    continue
+                    error(CompErrors.LOT_TEXT)
+
                 seg = {
                     ".text": vproc.reg.cs,
                     ".data": vproc.reg.ds,
-                    ".edata": vproc.reg.es,
-                    ".stack": vproc.reg.ss
                 }
                 if s[1] in seg:
-                    if seg[s[1]]:
-                        seg[s[1]].val = i
-                        cur_segment = s[1]
-                        # continue
-                    elif s[1] == '.text':
-                        add_errors("сегмент указан дважды или какие-то инструкции написаны перед ним")
+                    if not seg[s[1]]:
+                        i = seg[s[1]].val = (i & 0xff_f0) + 0x10
+                        cur_seg = s[1]
                     else:
-                        add_errors("сегмент указан дважды")
+                        error(CompErrors.SEG_DOUBLE)
                 else:
-                    add_errors("непонятный сегмент")
-                # break
+                    error(CompErrors.SEG_UNKNOWN)
             elif _is_name_var(s[0]):
                 sz = {'db': SIZE.BYTE, 'dw': SIZE.WORD}
-                if s[1] not in sz:
-                    add_errors("ЧТО ЭТО ЗА СЛОВОО?")
-                elif len(s) < 2:
-                    add_errors("а сами цифры где?")
-                elif cur_segment not in ['.data', '.edata']:
-                    add_errors('переменные вне соответсвующих сегментов')
-                else:
-                    for numb in s[3:]:
-                        numb = _to_number(numb, sz[s[1]].value)
-                        if not numb:
-                            add_errors('некорректное число в строке')
-                            break
-                        vproc.ram.write(i, numb, sz[s[1]])
-                        i += sz[s[1]].value
-                # break
+                labels['.data'][s[0]] =  i - vproc.reg.ds
+                if len(s) <= 2:
+                    error(CompErrors.ANY_TEXT)
+                elif s[1] not in sz:
+                    error(CompErrors.DS_UNK_TYPE)
+                elif cur_seg not in ['.data']:
+                    error(CompErrors.DS_NOT_HOME)
+
+                for numb in s[3:]:
+                    numb = _to_number(numb, sz[s[1]])
+                    if not numb:
+                        error(CompErrors.DS_NOT_NUMB)
+                    vproc.ram.write(i, numb, sz[s[1]])
+                    i += sz[s[1]].value
             elif _is_label(s[0]):
                 if len(s) > 1:
-                    add_errors('слишком много слов')
-                elif cur_segment != '.text':
-                    add_errors('метки перехода должны быть строга в сегменте кода (.text)')
-                elif ht.ht_has(labels, s[:-1]):
-                    add_errors('метка уже существует')
+                    error(CompErrors.LOT_TEXT)
+                elif cur_seg != '.text':
+                    error(CompErrors.LB_NOT_HOME)
+                elif s[0] in labels['.text']:
+                    error(CompErrors.LB_EXITS)
+
+                labels['.text'][s[0]] = i - vproc.reg.cs
+            elif vproc.instructions.is_mnem(s[0]):
+                args = _get_mb_args(s[1:])
+                op_type = None
+                op = None
+                for i in args:
+                    op = vproc.instructions.get_code(s[0].upper())
+                    if op is not None:
+                        op_type = i
+                        break
+                if op is None:
+                    error(CompErrors.OP_UNK)
+
+                vproc.ram.write(i, op, SIZE.BYTE)
+                op_type = op_type.split()
+                if (len(op_type)==1 and _check_reg(op_type[0])) or not len(op_type):
+                    i += 1
+                    continue
+                elif _check_reg(op_type[0]):
+                    op_type = op_type[1:]
+
+                if len(op_type) == 1:
+                    match op_type[0]:
+                        case "Iv":
+                            vproc.ram.write(i + 1, _to_number(s[1] if _to_number(s[1], SIZE.WORD) is not None else s[2], SIZE.WORD))
+                        case "Ib":
+                            vproc.ram.write(i + 1, _to_number(s[1] if _to_number(s[1], SIZE.BYTE) is not None else s[2], SIZE.BYTE))
+                        case "Jv":
+                            reg_label(s[1], i+1)
                 else:
-                    ht.ht_set(labels, s[:-1], i)
-                    # continue
-                # break
+                    op_type = ' '.join(op_type)
+                    if op_type in ['Eb Gb', 'Ev	Gv', 'Gb Eb', 'Gv Ev']:
+                        if _check_reg(s[1]) and _check_reg(s[2]):
+                            vproc.ram.write(i+1, _get_modRm(11, s[1].upper(), s[2].upper()))
+                    elif op_type in ['Eb Ib', 'Ev Iv']:
+                        pass
+
             else:
-                add_errors('непонятный символ')
-                # break
+                error(CompErrors.UNK_SYMBOL)
+
+        for lb, addr in use_label:
+            lb
 
 
 
+REG_16 = [
+    'AX', 'BX', 'CX', 'DX',
+    'SI', 'DI', 'BP', 'SP'
+]
+REG_8 = [
+    'AH', 'BH', 'CH', 'DH',
+    'AL', 'BL', 'CL', 'CL'
+]
+def _check_reg(txt):
+    return txt.upper() in REG_16 or txt.upper() in REG_8
 
+def _get_mb_args(operands):
+    if not len(operands):
+        return [""]
 
+    sz = {
+        False: SIZE.WORD,
+        True: SIZE.BYTE
+    }
+
+    if len(operands) == 1:
+        if _check_reg(operands[0]):
+            return [operands[0].upper()]
+        elif _to_number(operands[0], SIZE.WORD) is not None:
+            return ['Iv']
+        elif _is_name_var(operands[0]):
+            return ['Jv']
+        else:
+            return None
+    elif len(operands) == 2:
+        if _check_reg(operands[0]):
+            if _check_reg(operands[1]):
+                s = f'{operands[0].upper()} {operands[1].upper()}'
+                if operands[0].upper() in REG_8 and operands[1].upper() in REG_8:
+                    return [s, "Gb Eb"]
+                elif operands[0].upper() in REG_16 and operands[1].upper() in REG_16:
+                    return [s, 'Gv Ev']
+                else:
+                    return None
+            elif _to_number(operands[1], SIZE.BYTE if operands[0].upper() in REG_8 else SIZE.WORD) is not None:
+                return [f"{operands[0].upper()} {'Ib' if operands[0].upper() in REG_8 else 'Iv'}"]
+            # elif _is_name_var(operands[1]):
+            #     return "Gv M"
+            elif _get_pointer(operands[1]) is not None:
+                return ["Gb Eb" if operands[0].upper() in REG_8 else "Gv Ev"]
+            else:
+                return None
+        elif _get_pointer(operands[0]) is not None and _check_reg(operands[1]):
+            return ["Eb Gb" if operands[1].upper() in REG_8 else "Ev Gv"]
+    return None

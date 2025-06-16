@@ -50,7 +50,7 @@ class Instructions:
         hs.ht_full_refresh(self.m_table)
 
     def is_mnem(self, text):
-        return hs.ht_has(self.m_table, text)
+        return hs.ht_has(self.m_table, text.upper())
 
     def get_code(self, mnem, args):
         op = hs.ht_get(self.m_table, mnem)

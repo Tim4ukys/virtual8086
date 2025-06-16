@@ -33,6 +33,7 @@ class proc:
 
     def _default_reg(self):
         self.reg.sp.val = 0xff_ff
+
     def reset_registers(self):
         for name, value in registers.__dict__.items():
             if not name.startswith('__'):
