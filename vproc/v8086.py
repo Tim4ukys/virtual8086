@@ -1,5 +1,6 @@
 from vproc.memblock import *
 import enum
+from vproc.instructions import *
 
 # регистры
 class registers:
@@ -27,9 +28,19 @@ class proc_flags(enum.Enum):
 class proc:
     reg = registers()
     flags = Word()
-
+    instructions = Instructions()
     ram = Memory()
 
+    def _default_reg(self):
+        self.reg.sp.val = 0xff_ff
+    def reset_registers(self):
+        for name, value in registers.__dict__.items():
+            if not name.startswith('__'):
+                setattr(self.reg, name, Word())
+        self._default_reg()
+
+    def reset_flags(self):
+        self.flags.val = 0
     def set_flag(self, flag : proc_flags, bit):
         self.flags.set_bit(flag.value, bit)
     def get_flag(self, flag : proc_flags):

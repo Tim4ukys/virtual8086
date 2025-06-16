@@ -127,11 +127,11 @@ def _ht_refresh(ht : HashTable, key : str):
 # Записать в таблицу key -> data
 def ht_set(ht : HashTable, key : str, data):
     save_data = _ht_refresh(ht, key)
-    tb = ht.tabs[-1]
-    r = _tab_set(tb, key, data, ht.dtor)
-    if not r and not save_data:
+    if not save_data and not ht_has(ht, key):
         ht.count += 1
         _ht_keep_size_normal(ht)
+    tb = ht.tabs[-1]
+    r = _tab_set(tb, key, data, ht.dtor)
     return save_data if save_data else r
 
 # Получить значение по ключу. Если ключа нет в таблице, вернуть 0.
@@ -187,3 +187,8 @@ def _ht_keep_size_normal(ht : HashTable):
         _ht_resize(ht, ht.tabs[-1].size//2)
     elif k > norma[1]:
         _ht_resize(ht, ht.tabs[-1].size*2)
+
+def ht_full_refresh(ht : HashTable):
+    def emp(a, b):
+        pass
+    ht_traverse(ht, emp)

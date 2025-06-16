@@ -5,6 +5,10 @@ class Word:
 
     def __init__(self, val = 0):
         self.val = val & 0xff_ff
+    def __int__(self):
+        return self.val
+    def __bool__(self):
+        return bool(self.val)
 
     def get_high(self):
         return self.val >> 8
