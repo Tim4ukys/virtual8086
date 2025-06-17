@@ -1,6 +1,7 @@
 import database.hashtable as ht
 from vproc.instructions import _remove_comments
 from vproc.memblock import SIZE
+from vproc.memblock import to_unsign
 import enum
 
 from vproc.v8086 import registers
@@ -100,6 +101,7 @@ class CompileProg:
         use_label = {}
 
         def reg_label(lb, addr):
+            addr -= vproc.reg.cs.val
             if lb not in use_label:
                 use_label[lb] = [addr]
             else:
@@ -128,44 +130,19 @@ class CompileProg:
                         error(CompErrors.SEG_DOUBLE)
                 else:
                     error(CompErrors.SEG_UNKNOWN)
-            elif _is_name_var(s[0]):
-                sz = {'db': SIZE.BYTE, 'dw': SIZE.WORD}
-                labels['.data'][s[0]] =  i - vproc.reg.ds
-                if len(s) <= 2:
-                    error(CompErrors.ANY_TEXT)
-                elif s[1] not in sz:
-                    error(CompErrors.DS_UNK_TYPE)
-                elif cur_seg not in ['.data']:
-                    error(CompErrors.DS_NOT_HOME)
-
-                for numb in s[3:]:
-                    numb = _to_number(numb, sz[s[1]])
-                    if not numb:
-                        error(CompErrors.DS_NOT_NUMB)
-                    vproc.ram.write(i, numb, sz[s[1]])
-                    i += sz[s[1]].value
-            elif _is_label(s[0]):
-                if len(s) > 1:
-                    error(CompErrors.LOT_TEXT)
-                elif cur_seg != '.text':
-                    error(CompErrors.LB_NOT_HOME)
-                elif s[0] in labels['.text']:
-                    error(CompErrors.LB_EXITS)
-
-                labels['.text'][s[0]] = i - vproc.reg.cs
             elif vproc.instructions.is_mnem(s[0]):
                 args = _get_mb_args(s[1:])
                 op_type = None
                 op = None
-                for i in args:
-                    op = vproc.instructions.get_code(s[0].upper())
+                for a in args:
+                    op = vproc.instructions.get_code(s[0].upper(), a)
                     if op is not None:
-                        op_type = i
+                        op_type = a
                         break
                 if op is None:
                     error(CompErrors.OP_UNK)
 
-                vproc.ram.write(i, op, SIZE.BYTE)
+                vproc.ram.write(i, int(op, 16), SIZE.BYTE)
                 op_type = op_type.split()
                 if (len(op_type)==1 and _check_reg(op_type[0])) or not len(op_type):
                     i += 1
@@ -189,12 +166,40 @@ class CompileProg:
                     elif op_type in ['Eb Ib', 'Ev Iv']:
                         pass
 
+            elif _is_label(s[0]):
+                if len(s) > 1:
+                    error(CompErrors.LOT_TEXT)
+                elif cur_seg != '.text':
+                    error(CompErrors.LB_NOT_HOME)
+                elif s[0] in labels['.text']:
+                    error(CompErrors.LB_EXITS)
+
+                labels['.text'][s[0][:-1]] = i - vproc.reg.cs.val
+            elif _is_name_var(s[0]):
+                sz = {'db': SIZE.BYTE, 'dw': SIZE.WORD}
+                labels['.data'][s[0]] = i - vproc.reg.ds.val
+                if len(s) <= 2:
+                    error(CompErrors.ANY_TEXT)
+                elif s[1] not in sz:
+                    error(CompErrors.DS_UNK_TYPE)
+                elif cur_seg not in ['.data']:
+                    error(CompErrors.DS_NOT_HOME)
+
+                for numb in s[3:]:
+                    numb = _to_number(numb, sz[s[1]])
+                    if not numb:
+                        error(CompErrors.DS_NOT_NUMB)
+                    vproc.ram.write(i, numb, sz[s[1]])
+                    i += sz[s[1]].value
             else:
                 error(CompErrors.UNK_SYMBOL)
 
-        for lb, addr in use_label:
-            lb
-
+        for lb, addr in use_label.items():
+            l = labels['.text'][lb]
+            for a in addr:
+                tmp = to_unsign(l-a, 2)
+                vproc.ram.write(a + vproc.reg.cs.val, tmp, SIZE.WORD)
+                # to_sign(self.ram.read(i + 1, SIZE.WORD), 2)
 
 
 REG_16 = [

@@ -37,3 +37,8 @@ def test_memory_write_read():
     assert mem.read(0x6, SIZE.BYTE) is None
     assert not mem.write(0x5, 0xff_ff, SIZE.WORD)
     assert mem.read(0x5, SIZE.WORD) is None
+
+
+def test_to_sign():
+    assert to_sign(255, 1) == -1
+    assert to_unsign(to_sign(250, 1), 1) == 250

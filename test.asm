@@ -1,8 +1,12 @@
 
 segment .data
-test db 23
+ygabyga db 23
 
 segment .text
+test:
+INC ax
+INC bx
+JMP test
 
 
 

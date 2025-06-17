@@ -1,5 +1,11 @@
 from enum import Enum
 
+def to_sign(val, byte):
+    return val - (1 << (8 * byte))
+
+def to_unsign(val, byte):
+    return val + (1 << (8 * byte))
+
 class Word:
     val = None
 
@@ -10,6 +16,8 @@ class Word:
     def __bool__(self):
         return bool(self.val)
 
+    def set(self, v):
+        self.val = v & 0xffff
     def get_high(self):
         return self.val >> 8
     def get_low(self):
